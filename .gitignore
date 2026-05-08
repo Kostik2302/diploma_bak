@@ -1,0 +1,10 @@
+# Hyper-V VM disks and machine state (large local-only files)
+gitlab/Virtual Hard Disks/
+gitlab/Virtual Machines/
+gitlab/Snapshots/
+build/Virtual Hard Disks/
+build/Virtual Machines/
+build/Snapshots/
+nexus/Virtual Hard Disks/
+nexus/Virtual Machines/
+nexus/Snapshots/

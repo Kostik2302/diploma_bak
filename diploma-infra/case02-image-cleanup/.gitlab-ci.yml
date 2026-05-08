@@ -1,0 +1,72 @@
+# Кейсы 1 + 2: сборка, push в Nexus, очистка образа по расписканию GitLab.
+# Раскладка репозитория такая же, как в case01-build-isolation (Dockerfile, app/).
+#
+# Дополнительные переменные CI/CD:
+#   NEXUS_URL              — базовый URL Nexus для REST, напр. http://nexus.example.com:8081
+#   NEXUS_REPOSITORY       — имя Docker Hosted repo (напр. docker-hosted)
+#   NEXUS_USER / NEXUS_PASSWORD — учётка с правом удалять компоненты (можно тем же пользователем, что push)
+#
+# Для scheduled pipeline задайте переменную CLEANUP_IMAGE_TAG (тег образа для удаления)
+# или отредактируйте rules под свою политику.
+
+variables:
+  DOCKER_TLS_CERTDIR: ""
+  DOCKER_DRIVER: overlay2
+  IMAGE_NAME: diploma-ping
+  IMAGE_TAG: $CI_COMMIT_SHORT_SHA
+
+stages:
+  - build
+  - push
+  - cleanup
+
+build_image:
+  stage: build
+  image: docker:24
+  services:
+    - name: docker:24-dind
+      command: ["--tls=false"]
+  before_script:
+    - docker info
+  script:
+    - |
+      docker build \
+        --build-arg GOPROXY="${NEXUS_GOPROXY}" \
+        -f Dockerfile \
+        -t "${IMAGE_NAME}:${IMAGE_TAG}" \
+        .
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH
+
+push_image:
+  stage: push
+  image: docker:24
+  services:
+    - name: docker:24-dind
+      command: ["--tls=false"]
+  before_script:
+    - echo "$NEXUS_DOCKER_PASSWORD" | docker login -u "$NEXUS_DOCKER_USER" --password-stdin "$NEXUS_DOCKER_REGISTRY"
+  script:
+    - |
+      docker build \
+        --build-arg GOPROXY="${NEXUS_GOPROXY}" \
+        -f Dockerfile \
+        -t "${NEXUS_DOCKER_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}" \
+        .
+    - docker push "${NEXUS_DOCKER_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+# Запускается только из CI/CD → Schedules. Укажите CLEANUP_IMAGE_TAG в настройках расписания.
+cleanup_image_scheduled:
+  stage: cleanup
+  image: alpine:3.19
+  before_script:
+    - apk add --no-cache curl jq bash
+  script:
+    - chmod +x scripts/cleanup-nexus-docker-tag.sh
+    - CLEANUP_IMAGE_TAG="${CLEANUP_IMAGE_TAG:?задайте тег для удаления в variables расписания}"
+    - ./scripts/cleanup-nexus-docker-tag.sh
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"

@@ -1,0 +1,60 @@
+# Кейс 1: сборка образа, push в Nexus Docker Hosted, build-arg GOPROXY через Nexus.
+# Переменные CI/CD (Settings → CI/CD → Variables), masked + protected по необходимости:
+#   NEXUS_DOCKER_REGISTRY   — например nexus.example.com:8082 (host:port репозитория docker-hosted)
+#   NEXUS_DOCKER_USER       — учётка с правом push
+#   NEXUS_DOCKER_PASSWORD
+#   NEXUS_GOPROXY           — например http://nexus.example.com:8081/repository/go-proxy/
+#
+# На runner-хосте (build ВМ) в /etc/docker/daemon.json укажите registry-mirrors на Nexus Docker Proxy
+# (см. README). Иначе базовые образы golang/alpine тянутся напрямую в интернет.
+
+variables:
+  DOCKER_TLS_CERTDIR: ""
+  DOCKER_DRIVER: overlay2
+  IMAGE_NAME: diploma-ping
+  # Тег из ветки/коммита; для default branch можно заменить на $CI_COMMIT_SHORT_SHA
+  IMAGE_TAG: $CI_COMMIT_SHORT_SHA
+
+stages:
+  - build
+  - push
+
+build_image:
+  stage: build
+  image: docker:24
+  services:
+    - name: docker:24-dind
+      command: ["--tls=false"]
+  before_script:
+    - docker info
+  script:
+    - |
+      docker build \
+        --build-arg GOPROXY="${NEXUS_GOPROXY}" \
+        -f Dockerfile \
+        -t "${IMAGE_NAME}:${IMAGE_TAG}" \
+        .
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH
+
+push_image:
+  stage: push
+  image: docker:24
+  services:
+    - name: docker:24-dind
+      command: ["--tls=false"]
+  before_script:
+    - echo "$NEXUS_DOCKER_PASSWORD" | docker login -u "$NEXUS_DOCKER_USER" --password-stdin "$NEXUS_DOCKER_REGISTRY"
+  script:
+    - |
+      docker build \
+        --build-arg GOPROXY="${NEXUS_GOPROXY}" \
+        -f Dockerfile \
+        -t "${NEXUS_DOCKER_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}" \
+        .
+    - docker push "${NEXUS_DOCKER_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_COMMIT_BRANCH == "master"

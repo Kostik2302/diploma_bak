@@ -1,0 +1,130 @@
+services:
+  old-node-1:
+    image: opensearchproject/opensearch:2.17.0
+    container_name: old-node-1
+    environment:
+      - cluster.name=my-diploma-cluster
+      - node.name=old-node-1
+      - discovery.seed_hosts=old-node-2
+      - cluster.initial_cluster_manager_nodes=old-node-1,old-node-2
+      - bootstrap.memory_lock=false
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
+      - network.host=0.0.0.0
+      - http.port=9200
+      - transport.port=9300
+      - DISABLE_SECURITY_PLUGIN=true
+      - DISABLE_INSTALL_DEMO_CONFIG=true
+    ports:
+      - "9201:9200"
+    volumes:
+      - old-node-1-data:/usr/share/opensearch/data
+    networks:
+      - opensearch-net
+    restart: unless-stopped
+
+  old-node-2:
+    image: opensearchproject/opensearch:2.17.0
+    container_name: old-node-2
+    environment:
+      - cluster.name=my-diploma-cluster
+      - node.name=old-node-2
+      - discovery.seed_hosts=old-node-1
+      - cluster.initial_cluster_manager_nodes=old-node-1,old-node-2
+      - bootstrap.memory_lock=false
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
+      - network.host=0.0.0.0
+      - http.port=9200
+      - transport.port=9300
+      - DISABLE_SECURITY_PLUGIN=true
+      - DISABLE_INSTALL_DEMO_CONFIG=true
+    ports:
+      - "9202:9200"
+    volumes:
+      - old-node-2-data:/usr/share/opensearch/data
+    networks:
+      - opensearch-net
+    restart: unless-stopped
+    depends_on:
+      - old-node-1
+
+  new-node-1:
+    image: opensearchproject/opensearch:2.17.0
+    container_name: new-node-1
+    environment:
+      - cluster.name=my-diploma-cluster
+      - node.name=new-node-1
+      - discovery.seed_hosts=old-node-1,old-node-2,new-node-2
+      - bootstrap.memory_lock=false
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
+      - network.host=0.0.0.0
+      - http.port=9200
+      - transport.port=9300
+      - DISABLE_SECURITY_PLUGIN=true
+      - DISABLE_INSTALL_DEMO_CONFIG=true
+    ports:
+      - "9203:9200"
+    volumes:
+      - new-node-1-data:/usr/share/opensearch/data
+    networks:
+      - opensearch-net
+    restart: unless-stopped
+
+  new-node-2:
+    image: opensearchproject/opensearch:2.17.0
+    container_name: new-node-2
+    environment:
+      - cluster.name=my-diploma-cluster
+      - node.name=new-node-2
+      - discovery.seed_hosts=old-node-1,old-node-2,new-node-1
+      - bootstrap.memory_lock=false
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
+      - network.host=0.0.0.0
+      - http.port=9200
+      - transport.port=9300
+      - DISABLE_SECURITY_PLUGIN=true
+      - DISABLE_INSTALL_DEMO_CONFIG=true
+    ports:
+      - "9204:9200"
+    volumes:
+      - new-node-2-data:/usr/share/opensearch/data
+    networks:
+      - opensearch-net
+    restart: unless-stopped
+
+  opensearch-proxy:
+    image: nginx:alpine
+    container_name: opensearch-proxy
+    ports:
+      - "9200:9200"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      - opensearch-net
+    depends_on:
+      - old-node-1
+      - old-node-2
+    restart: unless-stopped
+
+  opensearch-dashboards:
+    image: opensearchproject/opensearch-dashboards:2.17.0
+    container_name: opensearch-dashboards
+    ports:
+      - "5601:5601"
+    environment:
+      - OPENSEARCH_HOSTS=["http://opensearch-proxy:9200"]
+      - DISABLE_SECURITY_DASHBOARDS_PLUGIN=true
+    networks:
+      - opensearch-net
+    restart: unless-stopped
+    depends_on:
+      - opensearch-proxy
+
+volumes:
+  old-node-1-data:
+  old-node-2-data:
+  new-node-1-data:
+  new-node-2-data:
+
+networks:
+  opensearch-net:
+    driver: bridge

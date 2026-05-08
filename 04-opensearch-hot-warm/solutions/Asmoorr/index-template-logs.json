@@ -1,0 +1,26 @@
+{
+  "index_patterns": ["logs*"],
+  "data_stream": {
+    "timestamp_field": {
+      "name": "timestamp"
+    }
+  },
+  "priority": 500,
+  "template": {
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 1,
+      "index.routing.allocation.require.temp": "hot"
+    },
+    "mappings": {
+      "properties": {
+        "timestamp": { "type": "date" },
+        "level": { "type": "keyword" },
+        "trace_id": { "type": "keyword" },
+        "service": { "type": "keyword" },
+        "host": { "type": "keyword" },
+        "message": { "type": "text" }
+      }
+    }
+  }
+}

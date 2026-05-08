@@ -1,0 +1,113 @@
+services:
+  os-master:
+    image: opensearchproject/opensearch:2.19.1
+    container_name: os-master
+    environment:
+      - cluster.name=case4-hot-warm
+      - node.name=os-master
+      - node.roles=cluster_manager
+      - discovery.seed_hosts=os-master,os-hot1,os-hot2,os-warm1,os-warm2
+      - cluster.initial_cluster_manager_nodes=os-master
+      - bootstrap.memory_lock=true
+      - DISABLE_SECURITY_PLUGIN=true
+      - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
+      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=Admin123!
+    ulimits:
+      memlock: { soft: -1, hard: -1 }
+      nofile: { soft: 65536, hard: 65536 }
+    ports:
+      - "9200:9200"
+      - "9600:9600"
+    networks: [opensearch-net]
+
+  os-hot1:
+    image: opensearchproject/opensearch:2.19.1
+    container_name: os-hot1
+    environment:
+      - cluster.name=case4-hot-warm
+      - node.name=os-hot1
+      - node.roles=data,ingest
+      - node.attr.temp=hot
+      - discovery.seed_hosts=os-master,os-hot1,os-hot2,os-warm1,os-warm2
+      - cluster.initial_cluster_manager_nodes=os-master
+      - bootstrap.memory_lock=true
+      - DISABLE_SECURITY_PLUGIN=true
+      - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
+      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=Admin123!
+    ulimits:
+      memlock: { soft: -1, hard: -1 }
+      nofile: { soft: 65536, hard: 65536 }
+    networks: [opensearch-net]
+
+  os-hot2:
+    image: opensearchproject/opensearch:2.19.1
+    container_name: os-hot2
+    environment:
+      - cluster.name=case4-hot-warm
+      - node.name=os-hot2
+      - node.roles=data,ingest
+      - node.attr.temp=hot
+      - discovery.seed_hosts=os-master,os-hot1,os-hot2,os-warm1,os-warm2
+      - cluster.initial_cluster_manager_nodes=os-master
+      - bootstrap.memory_lock=true
+      - DISABLE_SECURITY_PLUGIN=true
+      - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
+      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=Admin123!
+    ulimits:
+      memlock: { soft: -1, hard: -1 }
+      nofile: { soft: 65536, hard: 65536 }
+    networks: [opensearch-net]
+
+  os-warm1:
+    image: opensearchproject/opensearch:2.19.1
+    container_name: os-warm1
+    environment:
+      - cluster.name=case4-hot-warm
+      - node.name=os-warm1
+      - node.roles=data
+      - node.attr.temp=warm
+      - discovery.seed_hosts=os-master,os-hot1,os-hot2,os-warm1,os-warm2
+      - cluster.initial_cluster_manager_nodes=os-master
+      - bootstrap.memory_lock=true
+      - DISABLE_SECURITY_PLUGIN=true
+      - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
+      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=Admin123!
+    ulimits:
+      memlock: { soft: -1, hard: -1 }
+      nofile: { soft: 65536, hard: 65536 }
+    networks: [opensearch-net]
+
+  os-warm2:
+    image: opensearchproject/opensearch:2.19.1
+    container_name: os-warm2
+    environment:
+      - cluster.name=case4-hot-warm
+      - node.name=os-warm2
+      - node.roles=data
+      - node.attr.temp=warm
+      - discovery.seed_hosts=os-master,os-hot1,os-hot2,os-warm1,os-warm2
+      - cluster.initial_cluster_manager_nodes=os-master
+      - bootstrap.memory_lock=true
+      - DISABLE_SECURITY_PLUGIN=true
+      - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
+      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=Admin123!
+    ulimits:
+      memlock: { soft: -1, hard: -1 }
+      nofile: { soft: 65536, hard: 65536 }
+    networks: [opensearch-net]
+
+  opensearch-dashboards:
+    image: opensearchproject/opensearch-dashboards:2.19.1
+    container_name: opensearch-dashboards
+    environment:
+      - OPENSEARCH_HOSTS=["http://os-master:9200"]
+      - DISABLE_SECURITY_DASHBOARDS_PLUGIN=true
+    ports:
+      - "5601:5601"
+    depends_on:
+      - os-master
+    networks: [opensearch-net]
+
+networks:
+  opensearch-net:
+    driver: bridge
